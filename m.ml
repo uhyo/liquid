@@ -6,3 +6,9 @@ module M =
       let compare = compare
     end)
 include M
+
+let of_list binds = List.fold_left
+                      (fun m (k, v) ->
+                         M.add k v m)
+                      empty
+                      binds

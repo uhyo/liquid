@@ -1,7 +1,7 @@
 type t =
   | Bool
   | Int
-  | Fun of (t * Id.t) * t
+  | Fun of (t * string) * t
   | Var of int * t option ref
 
 val newtype : unit -> t
