@@ -3,6 +3,9 @@ open Parser
 }
 
 let space = [' ' '\t']
+let digit = ['0'-'9']
+let lower = ['a'-'z']
+let upper = ['A'-'Z']
 
 
 rule token = parse
@@ -23,8 +26,40 @@ rule token = parse
     { BOOL true }
 | "false"
     { BOOL false }
+| digit+
+    { INT (int_of_string (Lexing.lexeme lexbuf)) }
+| "fun"
+    { FUN }
+| "->"
+    { RARROW }
+| "if"
+    { IF }
+| "then"
+    { THEN }
+| "else"
+    { ELSE }
+| "let"
+    { LET }
+| '='
+    { EQ }
+| "in"
+    { IN }
+| "REC"
+    { REC }
+| "not"
+    { NOT }
+| '<'
+    { LT }
+| "<="
+    { LE }
+| '>'
+    { GT }
+| ">="
+    { GE }
 | eof
     { EOF }
+| lower (digit|lower|upper|'_')*
+    { IDENT(Lexing.lexeme lexbuf) }
 | _
     { failwith "unknown token!!!!!!!!!" }
 

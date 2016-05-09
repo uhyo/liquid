@@ -1,18 +1,19 @@
 (* e: ツリー表示したい項
- * f: ツリーのラベルと子を返す関数
+ * f: ツリーのラベルと兄弟、子を返す関数
  * di: デフォルトのインデント *)
-let make (f: 'a -> string * 'a list) (di: string) (e: 'a) =
+let make (f: 'a -> string * 'a list * 'a list) (di: string) (e: 'a) =
   let result = Buffer.create 100 in
   let rec indent a e =
     (* ラベルを書く *)
-    let (lbl, nodes) = f e in
+    let (lbl, nexts, children) = f e in
       Buffer.add_string result a; (* indent *)
       Buffer.add_string result lbl; (* ラベル *)
-      Buffer.add_string result " # "; (* 位置情報 *)
       Buffer.add_char result '\n';
-    (* 'a listの内容を順に処理 *)
+      (* 子を処理 *)
       let a' = a ^ "  " in
-        List.iter (fun n -> indent a' n) nodes
+        List.iter (fun n -> indent a' n) children;
+      (* 兄弟を処理 *)
+      List.iter (fun n -> indent a n) nexts;
   in
     indent di e;
     Buffer.contents result
