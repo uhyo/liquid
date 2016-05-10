@@ -200,30 +200,3 @@ let rec split cs =
          c's@css')
     cs
     []
-
-(* Solve constraints. *)
-    (*
-let rec solve (invalids: Q.t list) (valids: Q.t list) =
-  match invalids with
-    | [] ->
-        (* すべて解決した *)
-        ()
-    | c::cs ->
-        (* cがvalidでないconstraintだ *)
-        weaken c;
-          (* TODO *)
-          solve cs (c::valids)
-and weaken c =
-  match c with
-    | WellFormed((env, qenv), (sts, LType.Base(bt, LType.RFVar(i, r)))) ->
-        (* 現在のQualifiers *)
-        let qs = MI.find i a in
-
-and getqs rfs =
-  match rfs with
-    | LType.RFVar(i, { contents = Some rfs' }) -> getqs rfs'
-    | LType.RFVar(i, { contents = None }) ->
-        (* 初期値 *)
-
-
-     *)

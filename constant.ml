@@ -1,6 +1,7 @@
 (* Built-in something. *)
 (* special variable. *)
 let nu = "ν"
+let star = "*"
 (* Built-in functions. *)
 let iff= "⇔"
 let lt = "<"

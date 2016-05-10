@@ -46,10 +46,60 @@ let rec subst ((ex, x) as st) e =
     | Let((t, y), e1, e2) ->
         Let((t, y), subst st e1, subst st e2)
 
+(* 出現する変数を全て列挙 *)
+let rec vars e =
+  match e with
+    | Bool _ | Int _ -> S.empty
+    | Var x -> S.singleton x
+    | Lambda((_, x), e2) ->
+        S.add x (vars e2)
+    | App(e1, e2) ->
+        S.union (vars e1) (vars e2)
+    | If(e1, e2, e3) ->
+        S.union (vars e1) (S.union (vars e2) (vars e3))
+    | Let((_, x), e1, e2) ->
+        S.add x (S.union (vars e1) (vars e2))
+
+exception TypeError
+(* KNormalのBTypeをinfer（しっかりcheck） *)
+(* TODO: cons.mlにもあったような？ *)
+let rec gettype (env: BType.t M.t) = function
+  | Bool _ -> BType.Bool
+  | Int _ -> BType.Int
+  | Var x -> M.find x env
+  | Lambda((ta, a), e1) ->
+      let env' = M.add a ta env in
+      let td = gettype env' e1 in
+        BType.Fun((ta, a), td)
+  | App(e1, e2) ->
+      let t1 = gettype env e1 in
+      let t2 = gettype env e2 in
+        (match t1 with
+           | BType.Fun((ta, a), td) when BType.equal ta t2 ->
+               td
+           | _ -> raise TypeError)
+  | If(e1, e2, e3) ->
+      let t1 = gettype env e1 in
+        (match BType.equal t1 BType.Bool with
+           | false -> raise TypeError
+           | true ->
+               let t2 = gettype env e2 in
+               let t3 = gettype env e3 in
+                 (if BType.equal t2 t3 then
+                    t2
+                  else
+                    raise TypeError))
+  | Let((tx, x), e1, e2) ->
+      let t1 = gettype env e1 in
+        (match BType.equal tx t1 with
+           | false -> raise TypeError
+           | true ->
+               let env' = M.add x tx env in
+               gettype env' e2)
 
 
 
-(* BType.t Syntax.t -> BType.t kNormal.t *)
+(* BType.t Syntax.t -> kNormal.t *)
 let rec g env = function
   | Syntax.Bool v -> (Bool v, BType.Bool)
   | Syntax.Int v  -> (Int v, BType.Int)

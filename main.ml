@@ -17,14 +17,22 @@ let () =
   Printf.printf "KNormal\n%s\n" ((KNormal.tree BType.type_str) exp3);
   (* Constrains 生成 *)
   let (t, cs) = Cons.f exp3 in
-    Printf.printf "Cons\n%s\n" (LType.type_str t);
-    List.iter
-      (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
-      cs;
+  Printf.printf "Cons\n%s\n" (LType.type_str t);
+  List.iter
+    (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
+    cs;
   (* Constants を Split *)
-    let cs' = Cons.split cs in
+  let cs' = Cons.split cs in
     Printf.printf "Cons (Split)\n";
     List.iter
       (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
       cs';
+  (* とりあえずQを表示 *)
+  Printf.printf "Q:\n";
+  List.iter
+    (fun e -> Printf.printf "%s\n" (KNormal.short_str e))
+    Solve.default_q;
+  let a = Solve.f cs' Solve.default_q exp3 in
+    ()
+
 
