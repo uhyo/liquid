@@ -6,3 +6,7 @@
 *.cmx
 *.o
 /z3test
+
+/lexer.ml
+/parser.ml{,i}
+
