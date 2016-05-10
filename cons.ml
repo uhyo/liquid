@@ -2,6 +2,14 @@
 open KNormal
 open Q
 
+(* Map whose key is int *)
+module MI =
+  Map.Make
+    (struct
+      type t = int
+      let compare = compare
+    end)
+
 type t =
   (* WellFormed((a, qs), t1) <=> a; qs |- t1 *)
   | WellFormed of (Template.t M.t * Q.t list) * Template.t
@@ -196,7 +204,7 @@ and hm env (e: LType.t KNormal.t) =
 let f e = g Builtin.dtypes [] e
 
 
-(* Split constants. *)
+(* Split constraints. *)
 let rec split cs =
   List.fold_right
     (fun c css' ->
@@ -227,3 +235,29 @@ let rec split cs =
     cs
     []
 
+(* Solve constraints. *)
+    (*
+let rec solve (invalids: Q.t list) (valids: Q.t list) =
+  match invalids with
+    | [] ->
+        (* すべて解決した *)
+        ()
+    | c::cs ->
+        (* cがvalidでないconstraintだ *)
+        weaken c;
+          (* TODO *)
+          solve cs (c::valids)
+and weaken c =
+  match c with
+    | WellFormed((env, qenv), (sts, LType.Base(bt, LType.RFVar(i, r)))) ->
+        (* 現在のQualifiers *)
+        let qs = MI.find i a in
+
+and getqs rfs =
+  match rfs with
+    | LType.RFVar(i, { contents = Some rfs' }) -> getqs rfs'
+    | LType.RFVar(i, { contents = None }) ->
+        (* 初期値 *)
+
+
+     *)

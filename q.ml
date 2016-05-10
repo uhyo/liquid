@@ -1,6 +1,7 @@
 (* Static Qualifiers. *)
 type t =
   | QNu
+  | QStar
   | QVar of Id.t
   | QBool of bool
   | QInt of int
@@ -11,6 +12,13 @@ type t =
   | QLe of t * t
   | QGt of t * t
   | QGe of t * t
+
+(* 今回のQualifiers *)
+let default_qs = [
+  QLe(QInt 0, QNu);
+  QLe(QStar, QNu);
+  QLt(QNu, QStar)
+]
 
 (*yにxを代入*)
 let rec subst x y q =
