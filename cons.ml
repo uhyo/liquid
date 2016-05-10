@@ -14,23 +14,23 @@ type t =
   | WellFormed of (LType.t M.t * KNormal.t list) * LType.t
   (* SubType((a, es), t1, t2) <=> a; es |- t1 <: t2 *)
   | SubType of (LType.t M.t * KNormal.t list) * LType.t * LType.t
+(* Type of e is bool *)
+  | BoolExp of (LType.t M.t * KNormal.t list) * KNormal.t
 
 (* string of Cons. *)
 let cons_str t =
   (* template env. *)
   let benv buf env =
-    (*
     M.iter
       (fun x tx ->
-         let (_, lt) = tx in
-           match lt with
-             | LType.Fun(_) ->
-                 Buffer.add_string buf (x ^ ": (" ^ Template.type_str tx ^ "); ")
-             | _ ->
-                 Buffer.add_string buf (x ^ ": " ^ Template.type_str tx ^ "; "))
+         if not(M.mem x Builtin.dtypes) then
+           (match tx with
+              | LType.Fun(_) ->
+                  Buffer.add_string buf (x ^ ": (" ^ LType.type_str tx ^ "); ")
+              | _ ->
+                  Buffer.add_string buf (x ^ ": " ^ LType.type_str tx ^ "; ")))
       env in
-     *)
-    Buffer.add_string buf "...; " in
+    (*Buffer.add_string buf "...; " in*)
   let bqenv buf qenv =
     List.iter
       (fun q -> Buffer.add_string buf (KNormal.short_str q ^ "; "))
@@ -51,6 +51,14 @@ let cons_str t =
           Buffer.add_string result (LType.type_str t1);
           Buffer.add_string result " <: ";
           Buffer.add_string result (LType.type_str t2);
+          Buffer.contents result
+    | BoolExp((env, qenv), e) ->
+        let result = Buffer.create 1024 in
+          benv result env;
+          bqenv result qenv;
+          Buffer.add_string result "⊢ ";
+          Buffer.add_string result (KNormal.short_str e);
+          Buffer.add_string result " : bool";
           Buffer.contents result
 
 
@@ -166,11 +174,16 @@ let rec split cs =
          (match c with
             | WellFormed((env, qenv), t) ->
                 (match t with
-                   (* Funの引数は環境へ *)
+                   (* Funの引数は環境へ(WT-FUN) *)
                    | LType.Fun((ta, a), td) ->
                        let c' = WellFormed((M.add a ta env, qenv), td) in
                          split [c']
-                   (* TODO WT-BASE *)
+                   | LType.Base(bt, LType.RExp e) ->
+                       (* WT-BASE *)
+                       (* Liquid Type化する *)
+                       let bt' = LType.Base(bt, LType.RExp(Bool true)) in
+                       let c' = BoolExp((M.add Constant.nu bt' env, qenv), e) in
+                         split [c']
                    | _ -> [c])
             | SubType((env, qenv), t1, t2) ->
                 (match t1, t2 with
@@ -182,7 +195,8 @@ let rec split cs =
                        let cd = SubType((env', qenv), td1, td2) in
                        let cd's = split [cd] in
                          ca's @ cd's
-                   | _ -> [c])) in
+                   | _ -> [c])
+            | _ -> [c]) in
          c's@css')
     cs
     []
