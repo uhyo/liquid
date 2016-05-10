@@ -20,13 +20,13 @@ let rec template_term e typ =
         let e3' = template_term e3 typ in
           If(x, e2', e3')
     | Let((t, x), e1, e2) ->
-        let t' = LType.template t in
+        let t' = LType.skeleton t in
         let e1' = template_term e1 t' in
         let e2' = template_term e2 typ in
           Let((t', x), e1', e2')
     | LetRec((tx, x), ((_, y), e1), e2) ->
         (* XXX ??? It should be broken *)
-        let tx' = LType.template tx in
+        let tx' = LType.skeleton tx in
           (match tx' with
              | LType.Fun((ty, y'), td) ->
                  assert(y = y');
@@ -36,4 +36,4 @@ let rec template_term e typ =
              | _ -> failwith "MOOOOOM")
 
 let f (e: BType.t KNormal.t) (btyp: BType.t) =
-  template_term e (LType.template btyp)
+  template_term e (LType.skeleton btyp)

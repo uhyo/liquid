@@ -15,7 +15,13 @@ let () =
   (* K-Normalize *)
   let exp3 = KNormal.f exp2 in
   Printf.printf "KNormal\n%s\n" ((KNormal.tree BType.type_str) exp3);
-  (* template化*)
+  (* LType 化*)
   let exp4 = LTyping.f exp3 topBTyp in
-    Printf.printf "%s\n" (KNormal.tree LType.type_str exp4)
+    Printf.printf "LTyping.Skeleton\n%s\n" (KNormal.tree LType.type_str exp4);
+  (* Constrains 生成 *)
+  let (t, cs) = Cons.f exp4 in
+    Printf.printf "Cons\n%s\n" (Template.type_str t);
+    List.iter
+      (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
+      cs;
 

@@ -12,6 +12,19 @@ type t =
   | QGt of t * t
   | QGe of t * t
 
+(*yにxを代入*)
+let rec subst x y q =
+  match q with
+    | QVar z when y = z -> QVar x
+    | QNot q1 -> QNot (subst x y q1)
+    | QIff(q1, q2) -> QIff(subst x y q1, subst x y q2)
+    | QEq(q1, q2) -> QEq(subst x y q1, subst x y q2)
+    | QLt(q1, q2) -> QLt(subst x y q1, subst x y q2)
+    | QLe(q1, q2) -> QLe(subst x y q1, subst x y q2)
+    | QGt(q1, q2) -> QGt(subst x y q1, subst x y q2)
+    | QGe(q1, q2) -> QGe(subst x y q1, subst x y q2)
+    | _ -> q
+
 let rec q_str = function
   | QNu -> "ν"
   | QVar x -> x

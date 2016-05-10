@@ -8,5 +8,6 @@
 /z3test
 
 /lexer.ml
-/parser.ml{,i}
+/parser.ml
+/parser.mli
 
