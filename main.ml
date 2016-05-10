@@ -24,4 +24,10 @@ let () =
     List.iter
       (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
       cs;
+  (* Constants を Split *)
+    let cs' = Cons.split cs in
+    Printf.printf "Cons (Split)\n";
+    List.iter
+      (fun c -> Printf.printf "%s\n" (Cons.cons_str c))
+      cs';
 
