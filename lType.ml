@@ -1,95 +1,106 @@
+open KNormal
 (* Liquid Type. *)
-open Q
 
-(* Refinement predicates. *)
-type rfs =
-  | RFVar of int * rfs option ref
-  | RFQs of Q.t list
-
-(* Liquid Type. *)
-type t = 
-  | Base of BType.t * rfs
-  | Fun of (t * Id.t) * t
+(* elements of refinements predicates. *)
+type refm_t =
+  (* ML expression. *)
+  | RExp of  KNormal.t list
+  (* Pending Substitutions. *)
+  | RSubst of (KNormal.t * Id.t) list * int
 
 let nextid = ref 1
-
-(* generate Liquid type variables. *)
-let gen_rfs () =
+let genid () =
   let id = !nextid in
     nextid := id + 1;
-    RFVar(id, ref None)
+    id
 
-(* Shape of Liquid Type. *)
-let rec shape t =
+(* Liquid Types. *)
+type t =
+  | Base of BType.t * refm_t
+  | Fun of (t * Id.t) * t
+
+(* constant type. *)
+let c_bool = function
+  | true -> Base(BType.Bool,
+                 RExp([Var(Constant.nu)]))
+  | false -> Base(BType.Bool,
+                  RExp([App(Var(Constant.not),
+                            Var(Constant.nu))]))
+
+let c_int v =
+  Base(BType.Int,
+       RExp([App(App(Var(Constant.eq), Var(Constant.nu)),
+                 Int(v))]))
+    (* var type. *)
+let c_var bt x =
+  Base(bt,
+       RExp([App(App(Var(if bt = BType.Bool then Constant.iff else Constant.eq), Var(Constant.nu)),
+                 Var(x))]))
+
+(* Pending substitutionをapplyする *)
+let rec subst ((e, x) as st) t =
   match t with
-    | Base(b, _) -> b
-    | Fun((tx, x), td) -> BType.Fun((shape tx, x), shape td)
+    | Base(bt, rfm) -> Base(bt, subst_rfm st rfm)
+    | Fun((ta, a), td) ->
+        if a = x then
+          Fun((subst st ta, a), td)
+        else
+          Fun((subst st ta, a), subst st td)
+and subst_rfm st rfm =
+  match rfm with
+    | RExp es ->
+        RExp(List.map (KNormal.subst st) es)
+    | RSubst(sts, i) ->
+        RSubst(st::sts, i)
 
-(* Dependent Type for Constant. *)
-let c_bool v =
-  if v then
-    (* true *)
-    Base(BType.Bool, RFQs [QNu])
-  else
-    (* false *)
-    Base(BType.Bool, RFQs [QNot(QNu)])
-
-let c_int v = Base(BType.Int, RFQs [QEq(QNu, QInt v)])
-
-(* Liquid Type skeleton. *)
-let rec skeleton t =
+(* FreshなTemplateを作成 *)
+let rec fresh (t: BType.t) =
   match t with
     | BType.Bool
-    | BType.Int ->
-        Base(t, gen_rfs())
-    | BType.Fun((t1, x), t2) ->
-        Fun((skeleton t1, x), skeleton t2)
-    | _ -> failwith ("FOOOOOO " ^ BType.type_str t)
+    | BType.Int -> Base(t, RSubst([], genid()))
+    | BType.Fun((ta, x), td) ->
+        Fun((fresh ta, x), fresh td)
+    | _ -> failwith "LType.fresh"
 
-(* Substitution.
- * (xをyに代入) *)
-let rec subst x y t =
+(* BTypeにもどす *)
+let rec shape t =
   match t with
-    | Base(b, rfs) ->
-        Base(b, subst_rfs x y rfs)
-    | Fun((ta, a), td) ->
-        let a' = if a = y then x else a in
-        let ta' = subst x y ta in
-        let td' = subst x y td in
-          Fun((ta', a'), td')
-and subst_rfs x y rfs =
-  match rfs with
-    | RFVar(i, { contents = Some rfs' }) ->
-        RFVar(i, ref (Some (subst_rfs x y rfs')))
-    | RFVar(_) -> rfs
-    | RFQs qs ->
-        let qs' = List.map (Q.subst x y) qs in
-          RFQs qs'
-
-
-(* Sting of Refinement predicates. *)
-let rec rfs_str = function
-  | RFQs [] -> "true"
-  | RFQs qs ->
-      let result = Buffer.create 256 in
-        List.iteri
-          (fun i q ->
-             if i > 0 then Buffer.add_string result " ∧ ";
-             Buffer.add_string result ("(" ^ Q.q_str q ^ ")"))
-          qs;
-        Buffer.contents result
-  | RFVar(i, { contents = None }) ->
-      "κ" ^ string_of_int i
-  | RFVar(_, { contents = Some rf }) -> rfs_str rf
+    | Base(bt, _) -> bt
+    | Fun((bta, a), btd) ->
+        BType.Fun((shape bta, a), shape btd)
 
 let rec is_funtype = function
   | Fun(_) -> true
   | _ -> false
 
+let rec refm_str t =
+  match t with
+    | RExp [] -> "true"
+    | RExp es ->
+
+        let result = Buffer.create 512 in
+          List.iteri
+            (fun i e ->
+               if i > 0 then Buffer.add_string result "; ";
+               Buffer.add_string result (KNormal.short_str e))
+            es;
+          Buffer.contents result
+    | RSubst(sts, i) ->
+        let result = Buffer.create 512 in
+          List.iter
+            (fun (e, x) ->
+               let es = KNormal.short_str e in
+               if es <> x then
+                 Buffer.add_string result (Printf.sprintf "[%s/%s]" es x))
+            sts;
+          Buffer.add_string result ("κ" ^ string_of_int i);
+          Buffer.contents result
+
+
 let rec type_str t =
   match t with
-    | Base(bt,k) ->
-        "{ν : " ^ BType.type_str bt ^ " | " ^ rfs_str k ^ "}"
+    | Base(bt,refm) ->
+        "{ν : " ^ BType.type_str bt ^ " | " ^ refm_str refm ^ "}"
     | Fun((t1, x), t2) ->
         (if is_funtype t1 then
            x ^ ":(" ^ type_str t1 ^ ") -> " ^ type_str t2

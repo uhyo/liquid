@@ -1,15 +1,15 @@
 (* K-Normalized terms. *)
 
-type 'a t =
+type t =
   | Bool of bool
   | Int of int
   | Var of Id.t
-  | Lambda of ('a * Id.t) * 'a t
-  | App of Id.t * Id.t
-  | If of Id.t * 'a t * 'a t
-  | Let of ('a * Id.t) * 'a t * 'a t
-  | LetRec of ('a * Id.t) * (('a * Id.t) * 'a t) * 'a t
+  | Lambda of (BType.t * Id.t) * t
+  | App of t * t
+  | If of t * t * t
+  | Let of (BType.t * Id.t) * t * t
 
+                                     (*
 (* letを挿入してコールバックに変数名を渡す *)
 let insert_let (e, t) f =
   match e with
@@ -23,6 +23,32 @@ let insert_let (e, t) f =
         let e', t' = f x in
         (* Letを前に挿入する *)
           (Let((t, x), e, e'), t')
+
+                                      *)
+(* 式の変数を式で置き換え *)
+let rec subst ((ex, x) as st) e =
+  match e with
+    | Bool _ | Int _ -> e
+    | Var y when x <> y -> e
+    | Lambda((_, y), _) when x = y -> e
+    | Var _ ->
+        (* 置き換え *)
+        ex
+    | Lambda((ty, y), e2) ->
+        Lambda((ty, y), subst st e2)
+    | If(e1, e2, e3) ->
+        If(subst st e1, subst st e2, subst st e3)
+    | App(e1, e2) ->
+        App(subst st e1, subst st e2)
+    | Let((t, y), e1, e2) when x = y ->
+        (* e2は置き換えない *)
+        Let((t, y), subst st e1, e2)
+    | Let((t, y), e1, e2) ->
+        Let((t, y), subst st e1, subst st e2)
+
+
+
+
 (* BType.t Syntax.t -> BType.t kNormal.t *)
 let rec g env = function
   | Syntax.Bool v -> (Bool v, BType.Bool)
@@ -33,28 +59,18 @@ let rec g env = function
       let (e', te) = g env' e in
       (Lambda((tx, x), e'), BType.Fun((tx, x), te))
   | Syntax.App(e1, e2) ->
-      let (e1', t1) as et1 = g env e1 in
+      let (e1', t1) = g env e1 in
       (* 関数の戻り値の型を取り出す *)
       (match t1 with
          | BType.Fun(_, td) ->
-             insert_let
-               et1
-               (fun x ->
-                  let et2 = g env e2 in
-                  insert_let
-                    et2
-                    (fun y ->
-                       (* 返り値の型はtd *)
-                       (App(x, y), td)))
+             let (e2', _) = g env e2 in
+               (App(e1', e2'), td)
          | _ -> assert false)
   | Syntax.If(e1, e2, e3) ->
-      let et1 = g env e1 in
-        insert_let
-          et1
-          (fun x ->
-             let (e2', t2) = g env e2 in
-             let (e3', _)  = g env e3 in
-               (If(x, e2', e3'), t2))
+      let (e1', _) = g env e1 in
+      let (e2', t2) = g env e2 in
+      let (e3', _)  = g env e3 in
+        (If(e1', e2', e3'), t2)
   | Syntax.Let((tx, x), e1, e2) ->
       let (e1', _) = g env e1 in
       let env' = M.add x tx env in
@@ -62,31 +78,45 @@ let rec g env = function
         (Let((tx, x), e1', e2'), t2)
 
   | Syntax.LetRec((tx, x), ((ty, y), e1), e2) ->
+      assert false;
+      (*
       let env' = M.add x tx env in
       let env''= M.add y ty env in
       let e1', _ = g env'' e1 in
       let e2', t2 = g env' e2 in
-        (LetRec((tx, x), ((ty, y), e1'), e2'), t2)
+        (LetRec((tx, x), ((ty, y), e1'), e2'), t2)*)
 (* いろいろなSyntaxを組み込み関数化 *)
   | Syntax.Lt(e1,e2) ->
-      g env (Syntax.App(Syntax.App(Syntax.Var Builtin.lt, e1), e2))
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.lt, e1), e2))
   | Syntax.Le(e1,e2) ->
-      g env (Syntax.App(Syntax.App(Syntax.Var Builtin.le, e1), e2))
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.le, e1), e2))
   | Syntax.Gt(e1,e2) ->
-      g env (Syntax.App(Syntax.App(Syntax.Var Builtin.gt, e1), e2))
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.gt, e1), e2))
   | Syntax.Ge(e1,e2) ->
-      g env (Syntax.App(Syntax.App(Syntax.Var Builtin.ge, e1), e2))
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.ge, e1), e2))
   | Syntax.Not e1 ->
-      g env (Syntax.App(Syntax.Var Builtin.not, e1))
+      g env (Syntax.App(Syntax.Var Constant.not, e1))
 
-let f e = fst (g Builtin.btypes e)
+let f e = fst (g Constant.btypes e)
 
 let tree type_str = Tree.make (function
                                  | Bool v -> ("BOOL " ^ string_of_bool v, [], [])
                                  | Int v -> ("INT " ^ string_of_int v, [], [])
                                  | Var x -> ("VAR " ^ x, [], [])
                                  | Lambda((t,x), e) -> ("FUN (" ^ x ^ " : " ^ type_str t ^ ")", [], [e])
-                                 | App(x, y) -> ("APP " ^ x ^ " " ^ y, [], [])
-                                 | If(x, f, g) -> ("IF " ^ x, [], [f; g])
-                                 | Let((t,x), e, f) -> ("LET " ^ x ^ " : " ^ type_str t, [f], [e])
-                                 | LetRec((tx,x), ((ty, y), e), f) -> ("LETREC " ^ x ^ " : "^ type_str tx, [f], [Lambda((ty, y), e)])) "  "
+                                 | App(e1, e2) -> ("APP", [], [e1; e2])
+                                 | If(e1, e2, e3) -> ("IF", [], [e1; e2; e3])
+                                 | Let((t,x), e, f) -> ("LET " ^ x ^ " : " ^ type_str t, [f], [e])) "  "
+
+(* 短い文字列での表現 *)
+let rec short_str e =
+  match e with
+    | Bool v -> string_of_bool v
+    | Int v -> string_of_int v
+    | Var x -> x
+    | Lambda((_, x), e) -> "(fun " ^ x ^ " -> " ^ short_str e ^ ")"
+    | App(e1, e2) -> "(" ^ short_str e1 ^ " " ^ short_str e2 ^ ")"
+    | If(e1, e2, e3) -> "if " ^ short_str e1 ^ " then " ^ short_str e2 ^ " else " ^ short_str e3
+    | Let((_, x), e1, e2) ->
+        "let " ^ x ^ " = " ^ short_str e1 ^ " in " ^ short_str e2
+
