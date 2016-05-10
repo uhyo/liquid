@@ -158,31 +158,28 @@ and hm env (e: KNormal.t) =
 let f e = g Builtin.dtypes [] e
 
 
-            (*
 (* Split constraints. *)
 let rec split cs =
   List.fold_right
     (fun c css' ->
        let c's =
          (match c with
-            | WellFormed((env, qenv), (sts, lt)) ->
-                (match lt with
-                   (* Funは環境へ *)
+            | WellFormed((env, qenv), t) ->
+                (match t with
+                   (* Funの引数は環境へ *)
                    | LType.Fun((ta, a), td) ->
-                       let c' = WellFormed((M.add a (sts, ta) env, qenv), (sts, td)) in
+                       let c' = WellFormed((M.add a ta env, qenv), td) in
                          split [c']
-                   | LType.Base(BType.Bool, _) ->
-                       (* XXX 大丈夫な気がするからにぎりつぶす *)
-                       []
+                   (* TODO WT-BASE *)
                    | _ -> [c])
-            | SubType((env, qenv), (sts1, lt1), (sts2, lt2)) ->
-                (match lt1, lt2 with
+            | SubType((env, qenv), t1, t2) ->
+                (match t1, t2 with
                    | (LType.Fun((ta1, a1), td1), LType.Fun((ta2, a2), td2)) when a1 = a2 ->
                        (* 関数だったら分解する（引数は逆なので注意） *)
-                       let ca = SubType((env, qenv), (sts2, ta2), (sts1, ta1)) in
+                       let ca = SubType((env, qenv), ta2, ta1) in
                        let ca's = split [ca] in
-                       let env' = M.add a2 (sts2, ta2) env in
-                       let cd = SubType((env', qenv), (sts1, td1), (sts2, td2)) in
+                       let env' = M.add a2 ta2 env in
+                       let cd = SubType((env', qenv), td1, td2) in
                        let cd's = split [cd] in
                          ca's @ cd's
                    | _ -> [c])) in
@@ -216,4 +213,3 @@ and getqs rfs =
 
 
      *)
-             *)
