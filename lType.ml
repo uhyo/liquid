@@ -27,7 +27,7 @@ let rec template t =
         Base(t, gen_rfs())
     | BType.Fun((t1, x), t2) ->
         Fun((template t1, x), template t2)
-    | _ -> failwith "FOOOOOO"
+    | _ -> failwith ("FOOOOOO " ^ BType.type_str t)
 
 (* Dependent Type for Constant. *)
 let c_bool v =
