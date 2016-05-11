@@ -1,14 +1,6 @@
 (* Constraints. *)
 open KNormal
 
-(* Map whose key is int *)
-module MI =
-  Map.Make
-    (struct
-      type t = int
-      let compare = compare
-    end)
-
 type t =
   (* WellFormed((a, es), t1) <=> a; es |- t1 *)
   | WellFormed of (LType.t M.t * KNormal.t list) * LType.t
@@ -178,12 +170,15 @@ let rec split cs =
                    | LType.Fun((ta, a), td) ->
                        let c' = WellFormed((M.add a ta env, qenv), td) in
                          split [c']
-                   | LType.Base(bt, LType.RExp e) ->
+                   | LType.Base(bt, LType.RExp es) ->
                        (* WT-BASE *)
                        (* Liquid Type化する *)
-                       let bt' = LType.Base(bt, LType.RExp(Bool true)) in
-                       let c' = BoolExp((M.add Constant.nu bt' env, qenv), e) in
-                         split [c']
+                       let bt' = LType.Base(bt, LType.RExp([])) in
+                         (* esは全部boolでないとだめ *)
+                       let c's = List.map
+                                   (fun e -> BoolExp((M.add Constant.nu bt' env, qenv), e))
+                                   es in
+                         split c's
                    | _ -> [c])
             | SubType((env, qenv), t1, t2) ->
                 (match t1, t2 with

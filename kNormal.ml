@@ -46,19 +46,37 @@ let rec subst ((ex, x) as st) e =
     | Let((t, y), e1, e2) ->
         Let((t, y), subst st e1, subst st e2)
 
-(* 出現する変数を全て列挙 *)
-let rec vars e =
+(* 出現する変数と型を全て列挙 *)
+let rec vars env e =
+  match e with
+    | Bool _ | Int _ | Var _ -> env
+    | Lambda((t, x), e2) ->
+        let env' = M.add x t env in
+          vars env' e2
+    | App(e1, e2) ->
+        let env1 = vars env e1 in
+        let env2 = vars env e2 in
+          M.leftunion env1 env2
+    | If(e1, e2, e3) ->
+        let env1 = vars env e1 in
+        let env2 = vars env e2 in
+        let env3 = vars env e3 in
+          M.leftunion env1 (M.leftunion env2 env3)
+    | Let((t, x), e1, e2) ->
+        let env1 = vars env e1 in
+        let env1' = M.add x t env1 in
+          vars env1' e2
+
+(* 変数含むか調べる *)
+let rec varset e =
   match e with
     | Bool _ | Int _ -> S.empty
     | Var x -> S.singleton x
-    | Lambda((_, x), e2) ->
-        S.add x (vars e2)
-    | App(e1, e2) ->
-        S.union (vars e1) (vars e2)
-    | If(e1, e2, e3) ->
-        S.union (vars e1) (S.union (vars e2) (vars e3))
-    | Let((_, x), e1, e2) ->
-        S.add x (S.union (vars e1) (vars e2))
+    | Lambda((_, x), e2) -> S.remove x (varset e2)
+    | App(e1, e2) -> S.union (varset e1) (varset e2)
+    | If(e1, e2, e3) -> S.union (varset e1) (S.union (varset e2) (varset e2))
+    | Let((_, x), e1, e2) -> S.union (varset e1) (S.remove x (varset e2))
+
 
 exception TypeError
 (* KNormalのBTypeをinfer（しっかりcheck） *)

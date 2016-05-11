@@ -4,7 +4,7 @@ open KNormal
 (* elements of refinements predicates. *)
 type refm_t =
   (* ML expression. *)
-  | RExp of KNormal.t
+  | RExp of KNormal.t list
   (* Pending Substitutions. *)
   | RSubst of (KNormal.t * Id.t) list * int
 
@@ -22,20 +22,20 @@ type t =
 (* constant type. *)
 let c_bool = function
   | true -> Base(BType.Bool,
-                 RExp(Var(Constant.nu)))
+                 RExp([Var(Constant.nu)]))
   | false -> Base(BType.Bool,
-                  RExp(App(Var(Constant.not),
-                           Var(Constant.nu))))
+                  RExp([App(Var(Constant.not),
+                            Var(Constant.nu))]))
 
 let c_int v =
   Base(BType.Int,
-       RExp(App(App(Var(Constant.eq), Var(Constant.nu)),
-                Int(v))))
+       RExp([App(App(Var(Constant.eq), Var(Constant.nu)),
+                 Int(v))]))
     (* var type. *)
 let c_var bt x =
   Base(bt,
-       RExp(App(App(Var(if bt = BType.Bool then Constant.iff else Constant.eq), Var(Constant.nu)),
-                Var(x))))
+       RExp([App(App(Var(if bt = BType.Bool then Constant.iff else Constant.eq), Var(Constant.nu)),
+                 Var(x))]))
 
 (* Pending substitutionをapplyする *)
 let rec subst ((e, x) as st) t =
@@ -48,8 +48,8 @@ let rec subst ((e, x) as st) t =
           Fun((subst st ta, a), subst st td)
 and subst_rfm st rfm =
   match rfm with
-    | RExp e ->
-        RExp(KNormal.subst st e)
+    | RExp es ->
+        RExp(List.map (KNormal.subst st) es)
     | RSubst(sts, i) ->
         RSubst(st::sts, i)
 
@@ -75,8 +75,15 @@ let rec is_funtype = function
 
 let rec refm_str t =
   match t with
-    | RExp e ->
-        KNormal.short_str e
+    | RExp [] -> "true"
+    | RExp es ->
+        let result = Buffer.create 512 in
+          List.iteri
+            (fun i e ->
+               if i > 0 then Buffer.add_string result "; ";
+               Buffer.add_string result (KNormal.short_str e))
+            es;
+          Buffer.contents result
     | RSubst(sts, i) ->
         let result = Buffer.create 512 in
           List.iter

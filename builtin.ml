@@ -3,36 +3,48 @@ open Constant
 
 
 (* Dependent Type for built-in functions. *)
-let lbint = LType.Base(BType.Int, LType.RExp(Bool true))
-let lbbool= LType.Base(BType.Bool, LType.RExp(Bool true))
+let lbint = LType.Base(BType.Int, LType.RExp([]))
+let lbbool= LType.Base(BType.Bool, LType.RExp([]))
 let dtypes = M.of_list
                   [
+                    (iff, LType.Fun((lbint, "x"),
+                          LType.Fun((lbint, "y"),
+                          LType.Base(BType.Bool, LType.RExp([
+                            App(App(Var(iff), Var(nu)),
+                                App(App(Var(iff),Var("x")),
+                                    Var("y")))])))));
                     (lt, LType.Fun((lbint, "x"),
                          LType.Fun((lbint, "y"),
-                         LType.Base(BType.Bool, LType.RExp(
+                         LType.Base(BType.Bool, LType.RExp([
                            App(App(Var(iff), Var(nu)),
                                App(App(Var(lt),Var("x")),
-                                   Var("y"))))))));
+                                   Var("y")))])))));
                     (gt, LType.Fun((lbint, "x"),
                          LType.Fun((lbint, "y"),
-                         LType.Base(BType.Bool, LType.RExp(
+                         LType.Base(BType.Bool, LType.RExp([
                            App(App(Var(iff), Var(nu)),
                                App(App(Var(gt),Var("x")),
-                                   Var("y"))))))));
+                                   Var("y")))])))));
                     (le, LType.Fun((lbint, "x"),
                          LType.Fun((lbint, "y"),
-                         LType.Base(BType.Bool, LType.RExp(
+                         LType.Base(BType.Bool, LType.RExp([
                            App(App(Var(iff), Var(nu)),
                                App(App(Var(le),Var("x")),
-                                   Var("y"))))))));
+                                   Var("y")))])))));
                     (ge, LType.Fun((lbint, "x"),
                          LType.Fun((lbint, "y"),
-                         LType.Base(BType.Bool, LType.RExp(
+                         LType.Base(BType.Bool, LType.RExp([
                            App(App(Var(iff), Var(nu)),
                                App(App(Var(ge),Var("x")),
-                                   Var("y"))))))));
+                                   Var("y")))])))));
+                    (eq, LType.Fun((lbint, "x"),
+                         LType.Fun((lbint, "y"),
+                         LType.Base(BType.Bool, LType.RExp([
+                           App(App(Var(iff), Var(nu)),
+                               App(App(Var(eq),Var("x")),
+                                   Var("y")))])))));
                     (not, LType.Fun((lbbool, "x"),
-                          LType.Base(BType.Bool, LType.RExp(
+                          LType.Base(BType.Bool, LType.RExp([
                             App(App(Var(iff), Var(nu)),
-                                App(Var(not), Var("x")))))))
+                                App(Var(not), Var("x")))]))))
                   ]
