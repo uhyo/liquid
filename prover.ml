@@ -5,6 +5,12 @@ open Z3.Arithmetic
 open Z3.Boolean
 
 let debug_log = ref true
+
+(* 諸事情によりここみ *)
+let all_env = ref M.empty
+
+
+
 (* 論理式がValidか調べる *)
 (* nu_t: νの型 *)
 let rec validate (env: LType.t M.t) (qenv: KNormal.t list) (nu_t: BType.t) (goal: KNormal.t list) =
@@ -35,7 +41,7 @@ let rec validate (env: LType.t M.t) (qenv: KNormal.t list) (nu_t: BType.t) (goal
   let ctx = Z3.mk_context [("model", "false"); ("proof", "false")] in
   let g= Goal.mk_goal ctx false false false in
   (* envのshapeも用意しておく（ここはenv'ではなくenvで！） *)
-  let env_shape = Cons.shape_env env in
+  let env_shape = !all_env in
   (* env'の型がおかしかったらfalseを返す *)
     match List.exists
             (fun (_,t) ->

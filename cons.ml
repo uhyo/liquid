@@ -54,11 +54,15 @@ let cons_str t =
           Buffer.contents result
 
 
+(* all bindings. *)
+let allenv = ref M.empty
 
 (* generate constraints.
  * env: Type environment.
- * qenv: Type environment (conditions). *)
-let rec g (env: LType.t M.t) (qenv: KNormal.t list) (e: KNormal.t) =
+ * qenv: Type environment (conditions). 
+ * toplevel: true if functions can be called with arbitary arguments.
+ * fopen: true if function here is open *)
+let rec g (env: LType.t M.t) (qenv: KNormal.t list) (toplevel: bool) (fopen: bool) (e: KNormal.t) =
   match e with
     | Bool v -> (LType.c_bool v, [])
     | Int v -> (LType.c_int v, [])
@@ -73,8 +77,8 @@ let rec g (env: LType.t M.t) (qenv: KNormal.t list) (e: KNormal.t) =
              | _ ->
                  (t, []))
     | App(e1, e2) ->
-        let (t1, cs1) = g env qenv e1 in
-        let (t2, cs2) = g env qenv e2 in
+        let (t1, cs1) = g env qenv toplevel false e1 in
+        let (t2, cs2) = g env qenv toplevel false e2 in
           (match t1 with
              | LType.Fun((ta, a), td) ->
                  (* t2はtaのsubtypeである必要がある *)
@@ -88,12 +92,12 @@ let rec g (env: LType.t M.t) (qenv: KNormal.t list) (e: KNormal.t) =
         let bt = hm (shape_env env) e in
         (* FreshなTemplateを作成 *)
         let t = LType.fresh bt in
-        let (_, cs1) = g env qenv e1 in
+        let (_, cs1) = g env qenv toplevel false e1 in
         (* 制約を追加 *)
-        let (t2, cs2) = g env (e1 :: qenv) e2 in
+        let (t2, cs2) = g env (e1 :: qenv) toplevel fopen e2 in
         (* 逆を作る *)
         let note1 = App(Var(Constant.not), e1) in
-        let (t3, cs3) = g env (note1 :: qenv) e3 in
+        let (t3, cs3) = g env (note1 :: qenv) toplevel fopen e3 in
         (* if文の制約 *)
         (* Well-Formedness *)
         let cwf = WellFormed((env, qenv), t) in
@@ -111,20 +115,27 @@ let rec g (env: LType.t M.t) (qenv: KNormal.t list) (e: KNormal.t) =
              | LType.Fun((ta, a), td) ->
                  let env' = M.add a ta env in
                  (* bodyの制約 *)
-                 let (td', cs) = g env' qenv e1 in
+                 (* bodyの中はtoplevelではないがfopenかも *)
+                 let (td', cs) = g env' qenv false fopen e1 in
                  (* Lambdaの制約 *)
                  (* Well-Formedness *)
                  let cwf = WellFormed((env, qenv), t) in
                  (* subtype *)
                  let cst = SubType((env', qenv), td', td) in
-                   (t, cwf::cst::cs)
+                 (* 関数がopenの場合の制約 *)
+                 let copn = g_openfunc env qenv fopen t in
+                   (t, cwf::cst::copn@cs)
              | _ -> assert false)
     | Let((tx, x), e1, e2) ->
         let bt = hm (shape_env env) e in
         let t = LType.fresh bt in
-        let (t1, cs1) = g env qenv e1 in
+        (* letの中はtoplevelではないがfopenに引き継がれる！ *)
+        let (t1, cs1) = g env qenv false toplevel e1 in
+        (* allenvに入れる *)
+        allenv := M.add x t1 !allenv;
+        Printf.printf "BOOKOOM %s: %s\n" x (LType.type_str t1);
         let env' = M.add x t1 env in
-        let (t2, cs2) = g env' qenv e2 in
+        let (t2, cs2) = g env' qenv toplevel fopen e2 in
         (* Letの制約 *)
         let cwf = WellFormed((env, qenv), t) in
         let cst = SubType((env', qenv), t2, t) in
@@ -155,7 +166,32 @@ and hm env (e: KNormal.t) =
         let env' = M.add x tx env in
           hm env' e2
 
-let f e = g Builtin.dtypes [] e
+(* openなfunctionの型に対して制約を発行する *)
+and g_openfunc env qenv fopen t =
+  if not fopen then
+    []
+  else
+    (* openなfuncは任意の引数で呼ばれる可能性がある *)
+    match t with
+      | LType.Fun((ta, a), td) ->
+          (* 興味があるのは関数だけ *)
+          let ta' = arbitrarize ta in
+          let c1 = SubType((env, qenv), ta', ta) in
+            (* openなfuncから返される関数も任意の引数で呼ばれる可能性がある *)
+            c1::g_openfunc env qenv fopen td
+      | _ -> []
+(* 型を任意化 *)
+and arbitrarize t =
+  match t with
+    | LType.Base(bt, _) ->
+        LType.Base(bt, LType.RExp [])
+    | LType.Fun((ta, a), td) ->
+        LType.Fun((arbitrarize ta, a), arbitrarize td)
+
+
+
+(*ここでfopenがtrueかfalseかは諸説ある（2つしかない） *)
+let f e = g Builtin.dtypes [] true false e
 
 
 (* Split constraints. *)

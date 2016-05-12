@@ -20,7 +20,7 @@ let btypes = M.of_list
                          BType.Fun((BType.Int, "y"), BType.Bool)));
                     (le, BType.Fun((BType.Int, "x"),
                          BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (gt, BType.Fun((BType.Int, "x"),
+                    (ge, BType.Fun((BType.Int, "x"),
                          BType.Fun((BType.Int, "y"), BType.Bool)));
                     (eq, BType.Fun((BType.Int, "x"),
                          BType.Fun((BType.Int, "y"), BType.Bool)));

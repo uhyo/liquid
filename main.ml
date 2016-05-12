@@ -38,14 +38,24 @@ let () =
   Printf.printf "----------\nAssigmment:\n";
   MI.iter
     (fun i qs ->
-       Printf.printf "%d: " i;
+       Printf.printf "κ%d: " i;
+       if List.length qs = 0 then Printf.printf "true";
        List.iter
          (fun q -> Printf.printf "%s " (KNormal.short_str q))
          qs;
        Printf.printf "\n")
     a;
   Printf.printf "----------\n";
-  let t' = Solve.apply_asgn_lt a t in
+  (* bindingも表示 *)
+  Printf.printf "Bindings:\n";
+  M.iter
+    (fun x t ->
+       let t' = Solve.apply_asgn_lt Builtin.dtypes a t in
+       (*Printf.printf "\027[96m%s\027[39m: \027[93m%s\027[39m\n" x (LType.type_str t);*)
+       Printf.printf "\027[96m%s\027[39m: \027[93m%s\027[39m\n" x (LType.type_str t'))
+    !Cons.allenv;
+  Printf.printf "----------\n";
+  let t' = Solve.apply_asgn_lt M.empty a t in
   Printf.printf "%s\n" (LType.type_str t');
     ()
 

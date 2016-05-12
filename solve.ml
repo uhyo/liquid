@@ -13,12 +13,11 @@ let default_q = [
       Var(Constant.star))
 ]
 
-let all_env = ref M.empty
 let infer_q = ref []
 
 (* 初期のQ*を生成 *)
-let inst (nu_t: BType.t) =
-  let vs = List.map fst (M.bindings !all_env) in
+let inst (env: LType.t M.t) (nu_t: BType.t) =
+  let vs = List.map fst (M.bindings env) in
     (* XXX starは1つのみと仮定 *)
   let vs' = List.concat
               (List.map
@@ -34,7 +33,7 @@ let inst (nu_t: BType.t) =
                         [e])
                  (!infer_q)) in
   (* 型がおかしいものは除外 *)
-  let env' = M.add Constant.nu nu_t (!all_env) in
+  let env' = M.add Constant.nu nu_t (!Prover.all_env) in
   let vs'' = 
     List.filter
       (fun e ->
@@ -44,10 +43,6 @@ let inst (nu_t: BType.t) =
            | KNormal.TypeError
            | Not_found -> false)
       vs' in
-    List.iter
-    (fun e -> Printf.printf "P %s\n" (KNormal.short_str e)) vs'';
-
-
     vs''
 
 let show_qs (qs: KNormal.t list) =
@@ -69,13 +64,13 @@ let rec solve (invalids: Cons.t list) (valids: Cons.t list) (assignment: (KNorma
            else
              (* cはinvalidだからよわくしないと *)
                let a' = weaken c assignment in
-                 solve invalids valids a')
+                 solve (invalids@valids) [] a')
 and weaken c a =
   match c with
     | WellFormed((env, qenv), LType.Base(bt, LType.RSubst(sts, i))) ->
         Printf.printf "Weakening \027[93m%s\027[39m\n" (Cons.cons_str c);
         (* 現在のQualifiers *)
-        let qs = get_asgn bt i a in
+        let qs = get_asgn env bt i a in
         (* ちゃんとboolになるやつだけ残す *)
         let env' = Cons.shape_env env in
         let env'' = M.add Constant.nu bt env' in
@@ -87,7 +82,7 @@ and weaken c a =
                        with
                          | TypeError
                          | Not_found ->
-                         false)
+                             false)
                     qs in
           Printf.printf "qs:\n";
           show_qs qs;
@@ -97,11 +92,11 @@ and weaken c a =
           a'
     | SubType((env, qenv), (LType.Base(bt1, refm) as t1), LType.Base(bt2, LType.RSubst(sts, i))) ->
         Printf.printf "Weakening \027[93m%s\027[39m\n" (Cons.cons_str c);
-        let qs = get_asgn bt1 i a in
+        let qs = get_asgn env bt1 i a in
         (* envにaを適用 *)
         let env' = apply_asgn_env a env in
         (* t1にもaを適用 *)
-        let t1' = apply_asgn_lt a t1 in
+        let t1' = apply_asgn_lt env a t1 in
           (match t1' with
              (* さっきパターンマッチしたしね *)
              | LType.Base(bt1, LType.RExp es) ->
@@ -140,12 +135,22 @@ and c_valid_asgn c a =
               | WellFormed((env, qenv), t) ->
                   (* aでmapする *)
                   let env' = apply_asgn_env a env in
-                  let t' = apply_asgn_lt a t in
+                  let t' = apply_asgn_lt env a t in
                   WellFormed((env', qenv), t')
               | SubType((env, qenv), t1, t2) ->
+                  (*
+                  M.iter
+                    (fun x t -> Printf.printf "HUHUHU %s: %s\n" x (LType.type_str t))
+                    env; *)
                   let env' = apply_asgn_env a env in
-                  let t1' = apply_asgn_lt a t1 in
-                  let t2' = apply_asgn_lt a t2 in
+                  let t1' = apply_asgn_lt env a t1 in
+                  let t2' = apply_asgn_lt env a t2 in
+                    (*
+                    M.iter
+                      (fun x t -> Printf.printf "HOHOHO %s: %s\n" x (LType.type_str t))
+                      env';
+                     *)
+
                   SubType((env', qenv), t1', t2')
               | BoolExp((env, qenv), e) ->
                   let env' = apply_asgn_env a env in
@@ -170,14 +175,19 @@ and c_valid c =
         match t1, t2 with
           | (LType.Base(bt1, LType.RExp es1), LType.Base(bt2, LType.RExp es2)) when BType.equal bt1 bt2 ->
               (* es1, es2をenvで制限する *)
-              let es1' = limit_env_qs env es1 in
-              let es2' = limit_env_qs env es2 in
+              let env'n = M.add Constant.nu bt1 (Cons.shape_env env) in
+              let es1' = limit_env_qs env'n es1 in
+              let es2' = limit_env_qs env'n es2 in
+                M.iter
+                  (fun x t -> Printf.printf "KKOK %s: %s\n" x (LType.type_str t))
+                  env;
+                Printf.printf "MMOOM %s\n" (Cons.cons_str c);
               Printf.printf "\027[93mValidity Checking for %s\027[39m\n" (Cons.cons_str c);
               Prover.validate env (qenv @ es1') bt1 es2'
           | _ -> false
 
 (* qをenvの範囲に制限（envが知らないqは消す） *)
-and limit_env_qs (env: LType.t M.t) (q: KNormal.t list) =
+and limit_env_qs (env: 'a M.t) (q: KNormal.t list) =
   (* envが知っている変数のSet *)
   let envs = S.of_list (List.map fst (M.bindings env)) in
   let q' = List.filter
@@ -188,22 +198,22 @@ and limit_env_qs (env: LType.t M.t) (q: KNormal.t list) =
 
 
 (* assignmentから値を引く（ただしデフォルト値がある） *)
-and get_asgn nu_t i a =
+and get_asgn env nu_t i a =
   try
     MI.find i a
   with Not_found -> (*!default_inst*)
-    inst nu_t
+    inst env nu_t
 
 (* envにaを適用 *)
 and apply_asgn_env (a: (KNormal.t list) MI.t) (env: LType.t M.t) =
-  M.map (apply_asgn_lt a) env
+  M.map (apply_asgn_lt Builtin.dtypes a) env
 
-(* LType.tにaを適用 *)
-and apply_asgn_lt (a: (KNormal.t list) MI.t) (t: LType.t) =
+(* LType.tにaを適用（ただしenvの範囲内で） *)
+and apply_asgn_lt env (a: (KNormal.t list) MI.t) (t: LType.t) =
   match t with
     | LType.Base(bt, LType.RSubst(sts, i)) ->
         (* まずiを具体化 *)
-        let qs = get_asgn bt i a in
+        let qs = get_asgn env bt i a in
         (* 全てにstsを適用 *)
         let qs' = List.map
                     (List.fold_right KNormal.subst sts)
@@ -213,7 +223,8 @@ and apply_asgn_lt (a: (KNormal.t list) MI.t) (t: LType.t) =
         (* RSubstでないならそのまま *)
         t
     | LType.Fun((tx, x), td) ->
-        LType.Fun((apply_asgn_lt a tx, x), apply_asgn_lt a td)
+        let env' = M.add x tx env in
+        LType.Fun((apply_asgn_lt env a tx, x), apply_asgn_lt env' a td)
 
 
 let f (cs: Cons.t list) (q: KNormal.t list) (e: KNormal.t) =
@@ -221,6 +232,6 @@ let f (cs: Cons.t list) (q: KNormal.t list) (e: KNormal.t) =
   let env = KNormal.vars M.empty e in
   (* すべての変数とその型 *)
   let vs = M.leftunion Constant.btypes env in
-  all_env := vs;
+  Prover.all_env := vs;
   infer_q := q;
   solve cs [] MI.empty
