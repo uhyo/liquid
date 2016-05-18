@@ -15,6 +15,8 @@ type 'a t =
   | Le of 'a t * 'a t
   | Ge of 'a t * 'a t
   | Not of 'a t
+  | Add of 'a t * 'a t
+  | Sub of 'a t * 'a t
 
 let tree type_str = Tree.make (function
                                  | Bool v -> ("BOOL " ^ string_of_bool v, [], [])
@@ -30,4 +32,6 @@ let tree type_str = Tree.make (function
                                  | Le(e, f) -> ("LE", [], [e; f])
                                  | Ge(e, f) -> ("GE", [], [e; f])
                                  | Not e    -> ("NOT",[], [e])
+                                 | Add(e, f) -> ("ADD", [], [e; f])
+                                 | Sub(e, f) -> ("SUB", [], [e; f])
 ) "  "

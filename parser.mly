@@ -13,6 +13,8 @@ open Syntax
 %token GT
 %token GE
 %token EQ
+%token PLUS
+%token MINUS
 %token FUN
 %token RARROW
 %token IF
@@ -60,12 +62,12 @@ exp:
 | IF exp THEN exp ELSE exp
     %prec prec_if
     { If($2, $4, $6) }
-| LET IDENT EQ exp IN exp
-    %prec prec_let
-    { Let((BType.newtype(), $2), $4, $6) }
 | LET REC IDENT IDENT EQ exp IN exp
     %prec prec_let
     { LetRec((BType.newtype(), $3), ((BType.newtype(), $4), $6), $8) }
+| LET IDENT EQ exp IN exp
+    %prec prec_let
+    { Let((BType.newtype(), $2), $4, $6) }
 | NOT exp
     { Not $2 }
 | exp LT exp
@@ -76,6 +78,10 @@ exp:
     { Le($1, $3) }
 | exp GE exp
     { Ge($1, $3) }
+| exp PLUS exp
+    { Add($1, $3) }
+| exp MINUS exp
+    { Sub($1, $3) }
 | error
     { failwith
         (let {

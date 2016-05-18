@@ -10,6 +10,8 @@ let le = "<="
 let ge = ">="
 let not = "not"
 let eq = "="
+let add = "+"
+let sub = "-"
 
 (* BType for built-in functions. *)
 let btypes = M.of_list
@@ -24,5 +26,9 @@ let btypes = M.of_list
                          BType.Fun((BType.Int, "y"), BType.Bool)));
                     (eq, BType.Fun((BType.Int, "x"),
                          BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (not, BType.Fun((BType.Bool, "x"), BType.Bool))
+                    (not, BType.Fun((BType.Bool, "x"), BType.Bool));
+                    (add, BType.Fun((BType.Int, "x"),
+                         BType.Fun((BType.Int, "y"), BType.Int)));
+                    (sub, BType.Fun((BType.Int, "x"),
+                         BType.Fun((BType.Int, "y"), BType.Int)))
                   ]

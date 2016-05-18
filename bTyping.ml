@@ -55,6 +55,8 @@ let rec deref (e: BType.t Syntax.t) =
     | Le(e1, e2) -> Le(deref e1, deref e2)
     | Ge(e1, e2) -> Ge(deref e1, deref e2)
     | Not f -> Not(deref f)
+    | Add(e1, e2) -> Add(deref e1, deref e2)
+    | Sub(e1, e2) -> Sub(deref e1, deref e2)
     | _ -> e
 
 (* 型環境から型推論 *)
@@ -97,11 +99,13 @@ let rec g (env: BType.t M.t) (e: BType.t Syntax.t) =
         (* 再帰なので自分の型を *)
         let env' = M.add x tx env in
         let env'' = M.add y ty env' in
-        let t1 = g env'' e1 in
-        let t2 = g env' e2 in
+        let t1 = BType.newtype() in
         (* txは関数 *)
         unify tx (BType.Fun((ty, y), t1));
-        t2
+        let t1' = g env'' e1 in
+        unify t1 t1';
+        let t2 = g env' e2 in
+          t2
     | Lt(e1, e2) | Gt(e1, e2)
     | Le(e1, e2) | Ge(e1, e2) ->
         (* e1もe2もint *)
@@ -111,6 +115,13 @@ let rec g (env: BType.t M.t) (e: BType.t Syntax.t) =
         unify t2 BType.Int;
         (* 返り値はBool *)
         BType.Bool
+    | Add(e1, e2) | Sub(e1, e2) ->
+        (* 全部int *)
+        let t1 = g env e1 in
+        let t2 = g env e2 in
+        unify t1 BType.Int;
+        unify t2 BType.Int;
+        BType.Int
     | Not e1 ->
         let t1 = g env e1 in
         unify t1 BType.Bool;

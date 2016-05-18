@@ -141,17 +141,6 @@ let rec validate (env: LType.t M.t) (qenv: KNormal.t list) (nu_t: BType.t) (goal
                 Z3.Solver.add sv (Goal.get_formulas g);
                 let st = Z3.Solver.check sv [] in
                 let valid = (st = Z3.Solver.UNSATISFIABLE) in
-                (*
-                (* やってもらう *)
-                (*
-                let t1 = Tactic.and_then ctx (Tactic.mk_tactic ctx "simplify") (Tactic.mk_tactic ctx "solve-eqs") [] in
-                let t2 = Tactic.repeat ctx t1 10 in
-                 *)
-                let t2 = Tactic.mk_tactic ctx "smt" in
-                let ar = Tactic.apply t2 g None in
-                Printf.printf "Result:\n%s\n" (Tactic.ApplyResult.to_string ar);
-                let sat = Goal.is_decided_sat g in
-                 *)
                   (if valid then
                      Buffer.add_string buf "\027[92mValid\027[39m\n"
                    else
@@ -202,6 +191,14 @@ and e_to_z3expr ctx (env: BType.t M.t) (e: KNormal.t) =
     | App(Var(op), e1) when op = Constant.not ->
         let exp1 = e_to_z3expr ctx env e1 in
           mk_not ctx exp1
+    | App(App(Var(op), e1), e2) when op = Constant.add ->
+        let exp1 = e_to_z3expr ctx env e1 in
+        let exp2 = e_to_z3expr ctx env e2 in
+          mk_add ctx [exp1; exp2]
+    | App(App(Var(op), e1), e2) when op = Constant.sub ->
+        let exp1 = e_to_z3expr ctx env e1 in
+        let exp2 = e_to_z3expr ctx env e2 in
+          mk_sub ctx [exp1; exp2]
     | App _ ->
         failwith "app"
 

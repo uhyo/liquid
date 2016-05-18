@@ -9,22 +9,6 @@ type t =
   | If of t * t * t
   | Let of (BType.t * Id.t) * t * t
 
-                                     (*
-(* letを挿入してコールバックに変数名を渡す *)
-let insert_let (e, t) f =
-  match e with
-    | Var x ->
-        (* 変数を参照してるだけだから何も挿入する必要がなかった *)
-        f x
-    | _ ->
-        (* eをletに入れる *)
-        let x = Id.gentmp t in
-        (* 先を作ってもらう *)
-        let e', t' = f x in
-        (* Letを前に挿入する *)
-          (Let((t, x), e, e'), t')
-
-                                      *)
 (* 式の変数を式で置き換え *)
 let rec subst ((ex, x) as st) e =
   match e with
@@ -164,6 +148,10 @@ let rec g env = function
       g env (Syntax.App(Syntax.App(Syntax.Var Constant.ge, e1), e2))
   | Syntax.Not e1 ->
       g env (Syntax.App(Syntax.Var Constant.not, e1))
+  | Syntax.Add(e1,e2) ->
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.add, e1), e2))
+  | Syntax.Sub(e1,e2) ->
+      g env (Syntax.App(Syntax.App(Syntax.Var Constant.sub, e1), e2))
 
 let f e = fst (g Constant.btypes e)
 

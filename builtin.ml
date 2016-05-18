@@ -46,5 +46,17 @@ let dtypes = M.of_list
                     (not, LType.Fun((lbbool, "x"),
                           LType.Base(BType.Bool, LType.RExp([
                             App(App(Var(iff), Var(nu)),
-                                App(Var(not), Var("x")))]))))
+                                App(Var(not), Var("x")))]))));
+                    (add, LType.Fun((lbint, "x"),
+                          LType.Fun((lbint, "y"),
+                          LType.Base(BType.Int, LType.RExp([
+                            App(App(Var(eq), Var(nu)),
+                                App(App(Var(add),Var("x")),
+                                    Var("y")))])))));
+                    (sub, LType.Fun((lbint, "x"),
+                          LType.Fun((lbint, "y"),
+                          LType.Base(BType.Int, LType.RExp([
+                            App(App(Var(eq), Var(nu)),
+                                App(App(Var(add),Var("x")),
+                                    Var("y")))])))))
                   ]

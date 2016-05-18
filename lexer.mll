@@ -44,7 +44,7 @@ rule token = parse
     { EQ }
 | "in"
     { IN }
-| "REC"
+| "rec"
     { REC }
 | "not"
     { NOT }
@@ -56,6 +56,10 @@ rule token = parse
     { GT }
 | ">="
     { GE }
+| '+'
+    { PLUS }
+| '-'
+    { MINUS }
 | eof
     { EOF }
 | lower (digit|lower|upper|'_')*
