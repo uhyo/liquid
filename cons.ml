@@ -126,6 +126,23 @@ let rec g (env: LType.t M.t) (qenv: KNormal.t list) (toplevel: bool) (fopen: boo
                  let copn = g_openfunc env qenv fopen t in
                    (t, cwf::cst::copn@cs)
              | _ -> assert false)
+    | RecLambda((tx, x), (ty, y), e1) ->
+        (* こいつ…… 自分の型を知ってやがる！ *)
+        let t = LType.fresh tx in
+          (match t with
+             | LType.Fun((ta, a), td) ->
+                 let env' = M.add x t env in
+                 let env''= M.add a ta env' in
+                 (* bodyの制約 *)
+                 let (td', cs) = g env'' qenv false fopen e1 in
+                 (* Well-Formedness *)
+                 let cwf = WellFormed((env', qenv), t) in
+                 (* subtype *)
+                 let cst = SubType((env'', qenv), td', td) in
+                 let copn = g_openfunc env' qenv fopen t in
+                   (t, cwf::cst::copn@cs)
+             | _ -> assert false)
+
     | Let((tx, x), e1, e2) ->
         let bt = hm (shape_env env) e in
         let t = LType.fresh bt in
@@ -154,6 +171,8 @@ and hm env (e: KNormal.t) =
         let env' = M.add x tx env in
         let t2 = hm env' e1 in
           BType.Fun((tx, x), t2)
+    | RecLambda((tx, x), (ty, y), e1) ->
+        tx
     | App(e1, e2) ->
         let t1 = hm env e1 in
           (match t1 with

@@ -5,6 +5,7 @@ type t =
   | Int of int
   | Var of Id.t
   | Lambda of (BType.t * Id.t) * t
+  | RecLambda of (BType.t * Id.t) * (BType.t * Id.t) * t
   | App of t * t
   | If of t * t * t
   | Let of (BType.t * Id.t) * t * t
@@ -20,6 +21,10 @@ let rec subst ((ex, x) as st) e =
         ex
     | Lambda((ty, y), e2) ->
         Lambda((ty, y), subst st e2)
+    | RecLambda((tw, w), (ty, y), e2) when x = w || x = y ->
+        RecLambda((tw, w), (ty, y), e2)
+    | RecLambda((tw, w), (ty, y), e2) ->
+        RecLambda((tw, w), (ty, y), subst st e2)
     | If(e1, e2, e3) ->
         If(subst st e1, subst st e2, subst st e3)
     | App(e1, e2) ->
@@ -37,6 +42,10 @@ let rec vars env e =
     | Lambda((t, x), e2) ->
         let env' = M.add x t env in
           vars env' e2
+    | RecLambda((tx, x), (ty, y), e2) ->
+        let env' = M.add x tx env in
+        let env''= M.add y ty env' in
+          vars env'' e2
     | App(e1, e2) ->
         let env1 = vars env e1 in
         let env2 = vars env e2 in
@@ -57,6 +66,7 @@ let rec varset e =
     | Bool _ | Int _ -> S.empty
     | Var x -> S.singleton x
     | Lambda((_, x), e2) -> S.remove x (varset e2)
+    | RecLambda((_, _), (_, y), e2) -> S.remove y (varset e2)
     | App(e1, e2) -> S.union (varset e1) (varset e2)
     | If(e1, e2, e3) -> S.union (varset e1) (S.union (varset e2) (varset e2))
     | Let((_, x), e1, e2) -> S.union (varset e1) (S.remove x (varset e2))
@@ -73,6 +83,17 @@ let rec gettype (env: BType.t M.t) = function
       let env' = M.add a ta env in
       let td = gettype env' e1 in
         BType.Fun((ta, a), td)
+  | RecLambda((tx, x), (ty, y), e1) ->
+      let env' = M.add x tx env in
+      let env''= M.add y ty env' in
+        (match tx with
+           | BType.Fun ((ta, a), td) when a = y && BType.equal tx ta ->
+               let t1 = gettype env'' e1 in
+                 (match BType.equal t1 td with
+                    | false -> raise TypeError
+                    | true ->
+                        tx)
+           | _ -> raise TypeError)
   | App(e1, e2) ->
       let t1 = gettype env e1 in
       let t2 = gettype env e2 in
@@ -130,13 +151,13 @@ let rec g env = function
         (Let((tx, x), e1', e2'), t2)
 
   | Syntax.LetRec((tx, x), ((ty, y), e1), e2) ->
-      assert false;
-      (*
       let env' = M.add x tx env in
-      let env''= M.add y ty env in
+      let env''= M.add y ty env' in
       let e1', _ = g env'' e1 in
       let e2', t2 = g env' e2 in
-        (LetRec((tx, x), ((ty, y), e1'), e2'), t2)*)
+        (Let((tx, x),
+             RecLambda((tx, x), (ty, y), e1'),
+             e2'), t2)
 (* いろいろなSyntaxを組み込み関数化 *)
   | Syntax.Lt(e1,e2) ->
       g env (Syntax.App(Syntax.App(Syntax.Var Constant.lt, e1), e2))
@@ -160,6 +181,7 @@ let tree type_str = Tree.make (function
                                  | Int v -> ("INT " ^ string_of_int v, [], [])
                                  | Var x -> ("VAR " ^ x, [], [])
                                  | Lambda((t,x), e) -> ("FUN (" ^ x ^ " : " ^ type_str t ^ ")", [], [e])
+                                 | RecLambda(_,(t,x), e) -> ("RECFUN (" ^ x ^ " : " ^ type_str t ^ ")", [], [e])
                                  | App(e1, e2) -> ("APP", [], [e1; e2])
                                  | If(e1, e2, e3) -> ("IF", [], [e1; e2; e3])
                                  | Let((t,x), e, f) -> ("LET " ^ x ^ " : " ^ type_str t, [f], [e])) "  "
@@ -171,6 +193,7 @@ let rec short_str e =
     | Int v -> string_of_int v
     | Var x -> x
     | Lambda((_, x), e) -> "(fun " ^ x ^ " -> " ^ short_str e ^ ")"
+    | RecLambda((_, _), (_, y), e) -> "(recfun " ^ y ^ " -> " ^ short_str e ^ ")"
     | App(e1, e2) -> "(" ^ short_str e1 ^ " " ^ short_str e2 ^ ")"
     | If(e1, e2, e3) -> "if " ^ short_str e1 ^ " then " ^ short_str e2 ^ " else " ^ short_str e3
     | Let((_, x), e1, e2) ->

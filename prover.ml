@@ -156,6 +156,8 @@ and e_to_z3expr ctx (env: BType.t M.t) (e: KNormal.t) =
     | Var x -> Expr.mk_const_s ctx x (bt_to_z3sort ctx (M.find x env))
     | Lambda _ ->
         failwith "e_to_z3expr lambda"
+    | RecLambda _ ->
+        failwith "e_to_z3expr RecLambda"
     | Let _ ->
         failwith "e_to_z3expr let"
     | If(e1, e2, e3) ->
