@@ -152,15 +152,19 @@ and c_valid_asgn c a =
                   let t' = apply_asgn_lt env a t in
                   WellFormed((env', qenv), t')
               | SubType((env, qenv), t1, t2) ->
+                  (*
                   M.iter
                     (fun x t -> Printf.printf "HUHUHU %s: %s\n" x (LType.type_str t))
                     env;
+                   *)
                   let env' = apply_asgn_env a env in
                   let t1' = apply_asgn_lt env' a t1 in
                   let t2' = apply_asgn_lt env' a t2 in
+                    (*
                     M.iter
                       (fun x t -> Printf.printf "HOHOHO %s: %s\n" x (LType.type_str t))
                       env';
+                     *)
 
                   SubType((env', qenv), t1', t2')
               | BoolExp((env, qenv), e) ->

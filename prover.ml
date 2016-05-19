@@ -7,9 +7,7 @@ open Z3.Boolean
 let debug_log = ref true
 
 (* 諸事情によりここに *)
-let all_env = ref M.empty
-
-
+let all_env = ref (M.empty : BType.t M.t)
 
 (* 論理式がValidか調べる *)
 (* nu_t: νの型 *)
@@ -40,8 +38,14 @@ let rec validate (env: LType.t M.t) (qenv: KNormal.t list) (nu_t: BType.t) (goal
   (* Z3 context *)
   let ctx = Z3.mk_context [("model", "false"); ("proof", "false")] in
   let g= Goal.mk_goal ctx false false false in
-  (* envのshapeも用意しておく（ここはenv'ではなくenvで！） *)
-  let env_shape = !all_env in
+  (* envのshapeも用意しておく *)
+  let env_shape = M.merge (fun _ e1 e2 ->
+                             match e1, e2 with
+                               | Some e1', _ -> Some e1'
+                               | _, Some e2' -> Some e2'
+                               | _ -> None)
+                    (!all_env)
+                    (M.map LType.shape env) in
   (* env'の型がおかしかったらfalseを返す *)
     match List.exists
             (fun (_,t) ->
@@ -153,7 +157,7 @@ and e_to_z3expr ctx (env: BType.t M.t) (e: KNormal.t) =
   match e with
     | Bool v -> Boolean.mk_val ctx v
     | Int v -> Integer.mk_numeral_i ctx v
-    | Var x -> Expr.mk_const_s ctx x (bt_to_z3sort ctx (M.find x env))
+    | Var x -> Printf.printf "NNN %s\n" x; Expr.mk_const_s ctx x (bt_to_z3sort ctx (M.find x env))
     | Lambda _ ->
         failwith "e_to_z3expr lambda"
     | RecLambda _ ->
