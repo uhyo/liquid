@@ -13,22 +13,24 @@ let eq = "="
 let add = "+"
 let sub = "-"
 
+
+let rs x = ref (Some x)
 (* BType for built-in functions. *)
 let btypes = M.of_list
                   [
-                    (lt, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (gt, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (le, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (ge, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (eq, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Bool)));
-                    (not, BType.Fun((BType.Bool, "x"), BType.Bool));
-                    (add, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Int)));
-                    (sub, BType.Fun((BType.Int, "x"),
-                         BType.Fun((BType.Int, "y"), BType.Int)))
+                    (lt, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Bool)));
+                    (gt, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Bool)));
+                    (le, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Bool)));
+                    (ge, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Bool)));
+                    (eq, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Bool)));
+                    (not, BType.Fun((BType.Bool, rs "x"), BType.Bool));
+                    (add, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Int)));
+                    (sub, BType.Fun((BType.Int, rs "x"),
+                         BType.Fun((BType.Int, rs "y"), BType.Int)))
                   ]

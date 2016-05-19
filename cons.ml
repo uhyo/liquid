@@ -170,7 +170,7 @@ and hm env (e: KNormal.t) =
     | Lambda((tx, x), e1) ->
         let env' = M.add x tx env in
         let t2 = hm env' e1 in
-          BType.Fun((tx, x), t2)
+          BType.Fun((tx, ref (Some x)), t2)
     | RecLambda((tx, x), (ty, y), e1) ->
         tx
     | App(e1, e2) ->

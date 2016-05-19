@@ -58,7 +58,7 @@ let rec fresh (t: BType.t) =
   match t with
     | BType.Bool
     | BType.Int -> Base(t, RSubst([], genid()))
-    | BType.Fun((ta, x), td) ->
+    | BType.Fun((ta, {contents = Some x}), td) ->
         Fun((fresh ta, x), fresh td)
     | _ -> failwith "LType.fresh"
 
@@ -67,7 +67,7 @@ let rec shape t =
   match t with
     | Base(bt, _) -> bt
     | Fun((bta, a), btd) ->
-        BType.Fun((shape bta, a), shape btd)
+        BType.Fun((shape bta, ref (Some a)), shape btd)
 
 let rec is_funtype = function
   | Fun(_) -> true

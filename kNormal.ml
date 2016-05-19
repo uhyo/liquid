@@ -82,12 +82,12 @@ let rec gettype (env: BType.t M.t) = function
   | Lambda((ta, a), e1) ->
       let env' = M.add a ta env in
       let td = gettype env' e1 in
-        BType.Fun((ta, a), td)
+        BType.Fun((ta, ref (Some a)), td)
   | RecLambda((tx, x), (ty, y), e1) ->
       let env' = M.add x tx env in
       let env''= M.add y ty env' in
         (match tx with
-           | BType.Fun ((ta, a), td) when a = y && BType.equal tx ta ->
+           | BType.Fun ((ta, {contents = Some a}), td) when a = y && BType.equal tx ta ->
                let t1 = gettype env'' e1 in
                  (match BType.equal t1 td with
                     | false -> raise TypeError
@@ -98,7 +98,7 @@ let rec gettype (env: BType.t M.t) = function
       let t1 = gettype env e1 in
       let t2 = gettype env e2 in
         (match t1 with
-           | BType.Fun((ta, a), td) when BType.equal ta t2 ->
+           | BType.Fun((ta, _), td) when BType.equal ta t2 ->
                td
            | _ -> raise TypeError)
   | If(e1, e2, e3) ->
@@ -130,7 +130,7 @@ let rec g env = function
   | Syntax.Lambda((tx, x), e) ->
       let env' = M.add x tx env in
       let (e', te) = g env' e in
-      (Lambda((tx, x), e'), BType.Fun((tx, x), te))
+      (Lambda((tx, x), e'), BType.Fun((tx, ref (Some x)), te))
   | Syntax.App(e1, e2) ->
       let (e1', t1) = g env e1 in
       (* 関数の戻り値の型を取り出す *)

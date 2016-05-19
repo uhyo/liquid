@@ -17,23 +17,29 @@ let rec occur i t =
 (* 2つの型を一致させる *)
 let rec unify t1 t2 =
   match t1,t2 with
-     | BType.Bool, BType.Bool
-     | BType.Int, BType.Int -> ()
-     | BType.Fun((t3,_), t4), BType.Fun((t5,_), t6) ->
-         unify t3 t5;
-         unify t4 t6
-     | BType.Var(i,_), BType.Var(j,_) when i = j -> ()
-     | BType.Var(_,{ contents = Some(t1') }), _ -> unify t1' t2
-     | _, BType.Var(_,{ contents = Some(t2') }) -> unify t1 t2'
-     | BType.Var(i,({ contents = None } as r1)), _ ->
-         (* 無限型を避ける *)
-         if occur i t2 then raise (Unify(t1, t2));
-         r1 := Some t2
-     | _, BType.Var(j,({ contents = None } as r2)) ->
-         if occur j t1 then raise (Unify(t1, t2));
-         r2 := Some t1
-     | _, _ ->
-         raise (Unify(t1,t2))
+    | a, b when BType.is_btype a && BType.is_btype b && a = b -> ()
+    | BType.Fun((t3,x1), t4), BType.Fun((t5,x2), t6) ->
+        (* 型のUnify *)
+        unify t3 t5;
+        unify t4 t6;
+        (* 引数名 *)
+        (match !x1, !x2 with
+           | Some x1', Some x2' -> assert (x1' = x2'); ()
+           | Some x1', None -> x2 := Some x1'
+           | None, Some x2' -> x1 := Some x2'
+           | None, None -> ())
+    | BType.Var(i,_), BType.Var(j,_) when i = j -> ()
+    | BType.Var(_,{ contents = Some(t1') }), _ -> unify t1' t2
+    | _, BType.Var(_,{ contents = Some(t2') }) -> unify t1 t2'
+    | BType.Var(i,({ contents = None } as r1)), _ ->
+        (* 無限型を避ける *)
+        if occur i t2 then raise (Unify(t1, t2));
+        r1 := Some t2
+    | _, BType.Var(j,({ contents = None } as r2)) ->
+        if occur j t1 then raise (Unify(t1, t2));
+        r2 := Some t1
+    | _, _ ->
+        raise (Unify(t1,t2))
 
 (* 型変数をunbox *)
 let rec deref_t t =
@@ -71,13 +77,13 @@ let rec g (env: BType.t M.t) (e: BType.t Syntax.t) =
         (* xの型はt *)
         let env' = M.add x t env in
         let t2 = g env' e in
-          BType.Fun((t, x), t2)
+          BType.Fun((t, ref (Some x)), t2)
     | App(e1, e2) ->
         let t = BType.newtype() in
         let t1 = g env e1 in
         let t2 = g env e2 in
         (* e1の型はt2 -> tである *)
-        unify t1 (BType.Fun((t2,"?"), t));
+        unify t1 (BType.Fun((t2,ref None), t));
         t
     | If(e1, e2, e3) ->
         let t1 = g env e1 in
@@ -101,7 +107,7 @@ let rec g (env: BType.t M.t) (e: BType.t Syntax.t) =
         let env'' = M.add y ty env' in
         let t1 = BType.newtype() in
         (* txは関数 *)
-        unify tx (BType.Fun((ty, y), t1));
+        unify tx (BType.Fun((ty, ref (Some y)), t1));
         let t1' = g env'' e1 in
         unify t1 t1';
         let t2 = g env' e2 in
