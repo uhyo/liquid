@@ -6,7 +6,7 @@ open Z3.Boolean
 
 let debug_log = ref true
 
-(* 諸事情によりここみ *)
+(* 諸事情によりここに *)
 let all_env = ref M.empty
 
 
@@ -201,6 +201,20 @@ and e_to_z3expr ctx (env: BType.t M.t) (e: KNormal.t) =
         let exp1 = e_to_z3expr ctx env e1 in
         let exp2 = e_to_z3expr ctx env e2 in
           mk_sub ctx [exp1; exp2]
+    (* XXX なんかスマートじゃない *)
+    | App(Var(op), e1) when op = Constant.len ->
+        let exp1 = e_to_z3expr ctx env e1 in
+        let f = FuncDecl.mk_func_decl_s ctx op [Integer.mk_sort ctx] (Integer.mk_sort ctx) in
+          Expr.mk_app ctx f [exp1]
+    | App(App(Var(op), e1), e2) when op = Constant.arrayget ->
+        let exp1 = e_to_z3expr ctx env e1 in
+        let exp2 = e_to_z3expr ctx env e2 in
+        let f = FuncDecl.mk_func_decl_s ctx op [Integer.mk_sort ctx; Integer.mk_sort ctx] (Integer.mk_sort ctx) in
+          Expr.mk_app ctx f [exp1; exp2]
+    | App(App(Var(op), e1), e2) when op = Constant.arrayeq ->
+        let exp1 = e_to_z3expr ctx env e1 in
+        let exp2 = e_to_z3expr ctx env e2 in
+          mk_eq ctx exp1 exp2
     | App _ ->
         failwith "app"
 
@@ -210,4 +224,6 @@ and bt_to_z3sort ctx (t: BType.t) =
   match t with
     | BType.Bool -> Boolean.mk_sort ctx
     | BType.Int -> Integer.mk_sort ctx
+    (* XXX ここごまかしてる *)
+    | BType.IntArray -> Integer.mk_sort ctx
     | _ -> Sort.mk_uninterpreted_s ctx "uniterpreted_sort"

@@ -10,7 +10,14 @@ let foldn = fun n -> fun b -> fun f ->
     else c in
   loop 0 b in
 let arraymax = fun a ->
-  let am = fun l -> fun m -> max (sub a l) m in
-    foldn (len a) 0 am in
+  let am = fun l -> fun m ->
+    let d1= arrayget a in
+    let d = d1 l in
+    let d2 = max d in
+      d2 m in
+  let l1 = len a in
+  let f1 = foldn l1 in
+  let f2 = f1 0 in
+    f2 am in
   0
 

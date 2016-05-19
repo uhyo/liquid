@@ -24,7 +24,7 @@ let rec unify t1 t2 =
         unify t4 t6;
         (* 引数名 *)
         (match !x1, !x2 with
-           | Some x1', Some x2' -> assert (x1' = x2'); ()
+           | Some x1', Some x2' -> (* assert (x1' = x2'); *) ()
            | Some x1', None -> x2 := Some x1'
            | None, Some x2' -> x1 := Some x2'
            | None, None -> ())
@@ -134,7 +134,7 @@ let rec g (env: BType.t M.t) (e: BType.t Syntax.t) =
         BType.Bool
 
 let f (e: BType.t Syntax.t) =
-  let env = M.empty in
+  let env = (* M.empty *) Constant.btypes in
     (try
        let topTyp = g env e in
          (deref e, deref_t topTyp)

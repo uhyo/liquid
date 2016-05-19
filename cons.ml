@@ -114,6 +114,11 @@ let rec g (env: LType.t M.t) (qenv: KNormal.t list) (toplevel: bool) (fopen: boo
           (match t with
              | LType.Fun((ta, a), td) ->
                  let env' = M.add a ta env in
+                   (if a = "l" then
+                      M.iter
+                        (fun k t ->
+                           Printf.printf "%s: %s\n" k (LType.type_str t))
+                        env');
                  (* bodyの制約 *)
                  (* bodyの中はtoplevelではないがfopenかも *)
                  let (td', cs) = g env' qenv false fopen e1 in
@@ -237,14 +242,18 @@ let rec split cs =
                    | _ -> [c])
             | SubType((env, qenv), t1, t2) ->
                 (match t1, t2 with
-                   | (LType.Fun((ta1, a1), td1), LType.Fun((ta2, a2), td2)) when a1 = a2 ->
+                   | (LType.Fun((ta1, a1), td1), LType.Fun((ta2, a2), td2)) ->
                        (* 関数だったら分解する（引数は逆なので注意） *)
                        let ca = SubType((env, qenv), ta2, ta1) in
                        let ca's = split [ca] in
                        let env' = M.add a2 ta2 env in
-                       let cd = SubType((env', qenv), td1, td2) in
+                       let env''= M.add a1 ta2 env' in
+                       let cd = SubType((env'', qenv), td1, td2) in
                        let cd's = split [cd] in
                          ca's @ cd's
+                   | (LType.Base(bt1, _), LType.Base(bt2, LType.RExp([]))) when BType.equal bt1 bt2 ->
+                       (* 自明な制約は取り除く *)
+                       []
                    | _ -> [c])
             | _ -> [c]) in
          c's@css')

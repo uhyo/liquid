@@ -33,8 +33,13 @@ let c_int v =
                  Int(v))]))
     (* var type. *)
 let c_var bt x =
+  let eqop = (match bt with
+                | BType.Bool -> Constant.iff
+                | BType.Int -> Constant.eq
+                | BType.IntArray -> Constant.arrayeq
+                | _ -> assert false) in
   Base(bt,
-       RExp([App(App(Var(if bt = BType.Bool then Constant.iff else Constant.eq), Var(Constant.nu)),
+       RExp([App(App(Var(eqop), Var(Constant.nu)),
                  Var(x))]))
 
 (* Pending substitutionをapplyする *)
@@ -56,8 +61,7 @@ and subst_rfm st rfm =
 (* FreshなTemplateを作成 *)
 let rec fresh (t: BType.t) =
   match t with
-    | BType.Bool
-    | BType.Int -> Base(t, RSubst([], genid()))
+    | t when BType.is_btype t -> Base(t, RSubst([], genid()))
     | BType.Fun((ta, {contents = Some x}), td) ->
         Fun((fresh ta, x), fresh td)
     | _ -> failwith "LType.fresh"

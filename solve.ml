@@ -10,7 +10,9 @@ let default_q = [
   App(App(Var(Constant.le), Var(Constant.star)),
       Var(Constant.nu));
   App(App(Var(Constant.lt), Var(Constant.nu)),
-      Var(Constant.star))
+      Var(Constant.star));
+  App(App(Var(Constant.lt), Var(Constant.nu)),
+      App(Var(Constant.len), Var(Constant.star)))
 ]
 
 let infer_q = ref []
@@ -127,7 +129,19 @@ and weaken c a =
                    a'
              | _ -> assert false)
 
-    | _ -> failwith "FAILURE!!!"
+    | _ ->
+        (* 制約を満たせなかった！！！！！ *)
+        Printf.printf "error: \027[91m%s\027[39m\nAssignments:\n\n" (Cons.cons_str c);
+        MI.iter
+          (fun i qs ->
+             Printf.printf "κ%d: " i;
+             if List.length qs = 0 then Printf.printf "true";
+             List.iter
+               (fun q -> Printf.printf "%s " (KNormal.short_str q))
+               qs;
+             Printf.printf "\n")
+          a;
+        failwith "FAILURE!!!"
 
 (* A(c) がvalidか *)
 and c_valid_asgn c a =
@@ -138,18 +152,15 @@ and c_valid_asgn c a =
                   let t' = apply_asgn_lt env a t in
                   WellFormed((env', qenv), t')
               | SubType((env, qenv), t1, t2) ->
-                  (*
                   M.iter
                     (fun x t -> Printf.printf "HUHUHU %s: %s\n" x (LType.type_str t))
-                    env; *)
+                    env;
                   let env' = apply_asgn_env a env in
-                  let t1' = apply_asgn_lt env a t1 in
-                  let t2' = apply_asgn_lt env a t2 in
-                    (*
+                  let t1' = apply_asgn_lt env' a t1 in
+                  let t2' = apply_asgn_lt env' a t2 in
                     M.iter
                       (fun x t -> Printf.printf "HOHOHO %s: %s\n" x (LType.type_str t))
                       env';
-                     *)
 
                   SubType((env', qenv), t1', t2')
               | BoolExp((env, qenv), e) ->
@@ -178,10 +189,12 @@ and c_valid c =
               let env'n = M.add Constant.nu bt1 (Cons.shape_env env) in
               let es1' = limit_env_qs env'n es1 in
               let es2' = limit_env_qs env'n es2 in
+                (*
                 M.iter
                   (fun x t -> Printf.printf "KKOK %s: %s\n" x (LType.type_str t))
                   env;
                 Printf.printf "MMOOM %s\n" (Cons.cons_str c);
+                 *)
               Printf.printf "\027[93mValidity Checking for %s\027[39m\n" (Cons.cons_str c);
               Prover.validate env (qenv @ es1') bt1 es2'
           | _ -> false
@@ -206,7 +219,7 @@ and get_asgn env nu_t i a =
 
 (* envにaを適用 *)
 and apply_asgn_env (a: (KNormal.t list) MI.t) (env: LType.t M.t) =
-  M.map (apply_asgn_lt Builtin.dtypes a) env
+  M.map (apply_asgn_lt env a) env
 
 (* LType.tにaを適用（ただしenvの範囲内で） *)
 and apply_asgn_lt env (a: (KNormal.t list) MI.t) (t: LType.t) =
@@ -214,6 +227,12 @@ and apply_asgn_lt env (a: (KNormal.t list) MI.t) (t: LType.t) =
     | LType.Base(bt, LType.RSubst(sts, i)) ->
         (* まずiを具体化 *)
         let qs = get_asgn env bt i a in
+          (*
+          List.iter
+            (fun e -> Printf.printf "AOAOAOAOAO %s\n" (KNormal.short_str e))
+            qs;
+           *)
+
         (* 全てにstsを適用 *)
         let qs' = List.map
                     (List.fold_right KNormal.subst sts)
